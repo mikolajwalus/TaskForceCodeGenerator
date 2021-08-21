@@ -6,6 +6,7 @@ using AutoMapperCodeGenerator.FileUtils;
 using AutoMapperCodeGenerator.AutoMapperUtils;
 using System.IO;
 using AutoMapperCodeGenerator.ModelUtils;
+using AutoMapperCodeGenerator.RepositoryUtils;
 
 namespace AutoMapperCodeGenerator
 {
@@ -13,7 +14,9 @@ namespace AutoMapperCodeGenerator
     {
         private const string defaultEntityPath = @"C:\Projects\ArribatecInnovation\A1AR.Prod.ArribaPro\src\Plugins\Ap.Plugins.InstiPro\Data\Entities";
         private const string defaultModelPath = @"C:\Projects\ArribatecInnovation\A1AR.Prod.ArribaPro\src\Plugins\Ap.Plugins.InstiPro\Data\Models";
-        private const string defaultOutputPath = @"C:\Projects\ArribatecInnovation\A1AR.Prod.ArribaPro\src\Plugins\Ap.Plugins.InstiPro\AutoMapper\TypeProfiles";
+        private const string defaultRepositoryPath = @"C:\Projects\ArribatecInnovation\A1AR.Prod.ArribaPro\src\Plugins\Ap.Plugins.InstiPro\Data\Repositories";
+        private const string defaultRepositoryInterfacePath = @"C:\Projects\ArribatecInnovation\A1AR.Prod.ArribaPro\src\Plugins\Ap.Plugins.InstiPro\Data\Repositories\Interfaces";
+        private const string defaultProfilePath = @"C:\Projects\ArribatecInnovation\A1AR.Prod.ArribaPro\src\Plugins\Ap.Plugins.InstiPro\AutoMapper\TypeProfiles";
         static void Main(string[] args)
         {
             Console.WriteLine("############################");
@@ -25,30 +28,47 @@ namespace AutoMapperCodeGenerator
             Console.WriteLine();
 
             Console.WriteLine("############################");
-            Console.WriteLine("Enter model name:");
+            Console.WriteLine("Enter model name (must contain 'Model'):");
             Console.WriteLine("############################");
             var modelName = Console.ReadLine();
 
-            var modelProps = new List<string>();
+            var modelProps = GetModelProps(modelName, entityName, entityProps);
 
-            if(!File.Exists(defaultModelPath + modelName + ".cs"))
+            Console.WriteLine();
+            Console.WriteLine();
+
+            CreateProfileFile(entityName, modelName, entityProps, modelProps);
+            CreateRepositoryFile(entityName, modelName);
+            CreateRepositoryInterfaceFile(entityName, modelName);
+        }
+
+        public static List<string>  GetModelProps(string modelName, string entityName, List<string> entityProps)
+        {
+            if (!File.Exists(Path.Combine(defaultModelPath, modelName + ".cs")))
             {
-                var propertiesCode = FileUtilities.GetAllProperties(entityName, defaultEntityPath);
-                modelProps = entityProps;
-                var modelPairs = CreatePropPairs(modelProps, propertiesCode);
+                CreateModelFile(modelName, entityName, entityProps);
 
-                var modelCode = ModelUtilities.CreateStringWithModelCode(modelName, entityName, modelPairs);
-
-                FileUtilities.SaveToFile(modelName, modelCode, defaultModelPath);
+                return entityProps;
             }
             else
             {
-                modelProps = FileUtilities.GetAllClassPropertyNames(modelName, defaultModelPath);
+                return FileUtilities.GetAllClassPropertyNames(modelName, defaultModelPath);
             }
+        }
 
-            Console.WriteLine();
-            Console.WriteLine();
+        public static void CreateModelFile(string modelName, string entityName, List<string> entityProps)
+        {
+            var propertiesCode = FileUtilities.GetAllProperties(entityName, defaultEntityPath);
 
+            var modelPairs = CreatePropPairs(entityProps, propertiesCode);
+
+            var modelCode = ModelUtilities.CreateStringWithModelCode(modelName, entityName, modelPairs);
+
+            FileUtilities.SaveToFile(modelName, modelCode, defaultModelPath);
+        }
+
+        public static void CreateProfileFile(string entityName, string modelName, List<string> entityProps, List<string> modelProps)
+        {
             if (entityProps.Count != modelProps.Count)
                 throw new Exception("Number of props in model and entity has to be the same");
 
@@ -61,9 +81,27 @@ namespace AutoMapperCodeGenerator
 
             var code = AutoMapperUtilities.CreateStringWithMapCode(entityName, modelName, pairs);
 
-            var fileName = modelName.Replace("Model", "")+ "TypeProfile";
+            var fileName = modelName.Replace("Model", "TypeProfile");
 
-            FileUtilities.SaveToFile(fileName, code, defaultOutputPath);
+            FileUtilities.SaveToFile(fileName, code, defaultProfilePath);
+        }
+
+        public static void CreateRepositoryFile(string entityName, string modelName)
+        {
+            var code = RepositoryUtilities.CreateStringWithRepositoryCode(entityName, modelName);
+
+            var fileName = modelName.Replace("Model", "Repository");
+
+            FileUtilities.SaveToFile(fileName, code, defaultRepositoryPath);
+        }
+
+        public static void CreateRepositoryInterfaceFile(string entityName, string modelName)
+        {
+            var code = RepositoryUtilities.CreateStringWithRepositoryInterfaceCode(entityName, modelName);
+
+            var fileName = "I" + modelName.Replace("Model", "Repository");
+
+            FileUtilities.SaveToFile(fileName, code, defaultRepositoryInterfacePath);
         }
 
         public static List<(string EntityProp, string ModelProp)> CreatePropPairs(IEnumerable<string> entityProps, IEnumerable<string> modelProps)
